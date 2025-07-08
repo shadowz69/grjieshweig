@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Message</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        justify-content: center;
+        background: #111;
+      }
+
+      #showButton {
+        padding: 14px 30px;
+        font-size: 18px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(90deg, rgb(83, 228, 192), #08f437);
+        color: white;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        margin-bottom: 10px;
+      }
+
+      #showButton:hover {
+        background: linear-gradient(90deg, #06f211, rgb(94, 249, 213));
+      }
+
+      #container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
+        overflow: hidden;
+        display: none;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        background-color: transparent;
+        display: block;
+      }
+
+      #overlay {
+        position: absolute;
+        top: 10vh;
+        left: 5vw;
+        width: 90vw;
+        height: 65vh;
+        background-color: rgba(0, 0, 0, 0.85);
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+        z-index: 10;
+        display: none;
+        padding: 5vw;
+        color: #eee;
+        font-size: 4vw;
+        line-height: 1.5;
+        overflow-y: auto;
+      }
+
+      #closeOverlay {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-weight: bold;
+        font-size: 24px;
+        color: white;
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        cursor: pointer;
+        z-index: 20;
+      }
+
+      #pixelSizeControl {
+        position: absolute;
+        top: 8px;
+        right: 2px;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        z-index: 30;
+      }
+
+      #pixelSizeLabel {
+        background: #08f437;
+        color: black;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 4px;
+        text-align: center;
+        position: relative;
+      }
+
+      #pixelSizeLabel::after {
+        content: "";
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 8px 8px 0 8px;
+        border-style: solid;
+        border-color: #08f437 transparent transparent transparent;
+      }
+
+      #fontSizeSlider {
+        width: 100px;
+        margin: 4px 0;
+        accent-color: #08f437;
+      }
+
+      #pixelSizeValueDisplay {
+        width: 40px;
+        height: 28px;
+        background: #333;
+        color: #0f0;
+        font-weight: bold;
+        font-size: 16px;
+        border-radius: 6px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: "Courier New", monospace;
+      }
+
+      audio {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="showButton">Show Message</button>
+
+    <div id="container">
+      <canvas id="textPortrait"></canvas>
+
+      <div id="overlay">
+        <div id="closeOverlay" title="Close Overlay">&#10005;</div>
+        <div id="overlayText">
+          <h2>HAPPY BIRTHDAY KIM 🎂🥳</h2>
+          <p>
+            Another year older, but still slayin' You're such a good friend and
+            it is very fun when I'm with you. I kinda lowkey miss the moments
+            when we were stressing over the coding projects that our professors
+            gave us (even though our outputs were AI generated 😅).<br /><br />
+            No matter how hard life gets, just keep fighting. And don't hesitate
+            to ask me for help when you need it. Once again, happy birthday and
+            enjoy your day.
+          </p>
+          <p>Lots of love, Raymund</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="pixelSizeControl">
+      <div id="pixelSizeLabel">Pixel Size</div>
+      <input type="range" id="fontSizeSlider" min="1" max="30" value="30" />
+      <div id="pixelSizeValueDisplay">30</div>
+    </div>
+
+    <audio id="backgroundAudio" loop>
+      <source src="sound.mp3" type="audio/mpeg" />
+    </audio>
+
+    <script>
+      const message = "HappyBirthday";
+      const imageURL = "kim.png";
+
+      const canvas = document.getElementById("textPortrait");
+      const ctx = canvas.getContext("2d");
+
+      // Make canvas match device screen
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+
+      const showButton = document.getElementById("showButton");
+      const container = document.getElementById("container");
+      const overlay = document.getElementById("overlay");
+      const closeOverlay = document.getElementById("closeOverlay");
+      const pixelSizeControl = document.getElementById("pixelSizeControl");
+      const fontSizeSlider = document.getElementById("fontSizeSlider");
+      const pixelSizeValueDisplay = document.getElementById(
+        "pixelSizeValueDisplay"
+      );
+      const audio = document.getElementById("backgroundAudio");
+
+      let fontSize = parseInt(fontSizeSlider.value);
+      let loadedImageData = null;
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = imageURL;
+
+      img.onload = () => {
+        const offCanvas = document.createElement("canvas");
+        offCanvas.width = width;
+        offCanvas.height = height;
+        const offCtx = offCanvas.getContext("2d");
+
+        const imgWidth = width * 0.8;
+        const imgHeight = height * 0.8;
+        const posX = (width - imgWidth) / 2;
+        const posY = (height - imgHeight) / 2;
+
+        offCtx.drawImage(img, posX, posY, imgWidth, imgHeight);
+        loadedImageData = offCtx.getImageData(0, 0, width, height);
+      };
+
+      function drawTextPortrait(fontSizeLocal, textToDraw) {
+        if (!loadedImageData) return;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(0, 0, width, height);
+
+        const data = loadedImageData.data;
+        const lineHeight = Math.round(fontSizeLocal * 1.2);
+        const charWidthEstimate = Math.round(fontSizeLocal * 0.6);
+        const charsPerLine = Math.floor(width / charWidthEstimate);
+        const linesNum = Math.floor(height / lineHeight);
+        const totalCharsNeeded = charsPerLine * linesNum;
+
+        let fullMessage = "";
+        while (fullMessage.length < totalCharsNeeded) {
+          fullMessage += textToDraw + " ";
+        }
+        fullMessage = fullMessage.slice(0, totalCharsNeeded);
+
+        ctx.font = fontSizeLocal + "px Courier New, monospace";
+        ctx.textBaseline = "top";
+
+        let charIndex = 0;
+        const brightness = 1.8;
+
+        for (let yLine = 0; yLine < linesNum; yLine++) {
+          for (let xChar = 0; xChar < charsPerLine; xChar++) {
+            if (charIndex >= fullMessage.length) break;
+            const letter = fullMessage[charIndex];
+            const x = xChar * charWidthEstimate;
+            const y = yLine * lineHeight;
+            const px = Math.min(Math.floor(x), width - 1);
+            const py = Math.min(Math.floor(y + fontSizeLocal / 2), height - 1);
+            const pixelIdx = (py * width + px) * 4;
+            let r = data[pixelIdx] * brightness;
+            let g = data[pixelIdx + 1] * brightness;
+            let b = data[pixelIdx + 2] * brightness;
+            let a = data[pixelIdx + 3];
+
+            if (a === 0) {
+              charIndex++;
+              continue;
+            }
+
+            ctx.fillStyle = `rgba(${Math.min(r, 255)},${Math.min(
+              g,
+              255
+            )},${Math.min(b, 255)},${a / 255})`;
+            ctx.fillText(letter, x, y);
+            charIndex++;
+          }
+        }
+      }
+
+      function drawTextPortraitWithTyping(fontSizeLocal, fullText) {
+        if (!loadedImageData) return;
+        let currentIndex = 0;
+        let displayedText = "";
+
+        function type() {
+          if (currentIndex <= fullText.length) {
+            displayedText = fullText.slice(0, currentIndex);
+            drawTextPortrait(fontSizeLocal, displayedText);
+            currentIndex++;
+            setTimeout(type, 2);
+          } else {
+            pixelSizeControl.style.display = "flex";
+          }
+        }
+        type();
+      }
+
+      showButton.addEventListener("click", () => {
+        container.style.display = "block";
+        showButton.style.display = "none";
+        overlay.style.display = "block";
+        audio.play().catch(() => {});
+      });
+
+      closeOverlay.addEventListener("click", () => {
+        overlay.style.display = "none";
+        drawTextPortraitWithTyping(fontSize, message);
+      });
+
+      fontSizeSlider.addEventListener("input", () => {
+        fontSize = parseInt(fontSizeSlider.value);
+        pixelSizeValueDisplay.textContent = fontSize;
+        drawTextPortrait(fontSize, message);
+      });
+
+      pixelSizeValueDisplay.textContent = fontSize;
+    </script>
+  </body>
+</html>
